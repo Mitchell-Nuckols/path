@@ -1,0 +1,7 @@
+# Demonstrates the `reverse` (り) and `sort` (そ) stack manipulation operations
+
+い「Hello World!」　り　る き　い「Hello World!」　そ　る
+
+# Pushes "Hello World!" onto the stack, reverses the stack, and prints the result.
+# Then, it clears the stack, pushes "Hello World!" to the stack once more, but this time, it sorts the stack
+# with the greatest on the top and least on the bottom.

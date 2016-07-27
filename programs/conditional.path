@@ -1,0 +1,13 @@
+え「1」　ば
+　　　　　　ほ　ろ　に　ろ　や｛わ；10；び；ぼ｝
+　　　　　　　　　　　　　ほ　　　ぽ　い「Reached 10!」　る
+
+# Starts off by pushing 1 to the stack. Changes execution direction down/right.
+# Changes direction to go right again. Prints the stack, increments the stack, and prints it once more.
+# A conditional is reached where it checks if the top of the stack is equal to 10.
+# If it is, it changes execution direction down/left where it will hit another change to execute right.
+# However, if it doesn't equal 10, it bounces back, executing the print, increment, print section again.
+# It then hits the command telling it to read right again, so it reads right towards the conditional again.
+# It is checked again and, if it is still false, goes through the cycle again until it is true.
+# Once it becomes true, execution direction is directed towards the pathway that puts "Reached 10!" on the stack
+# and prints it out.

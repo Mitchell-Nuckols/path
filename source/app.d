@@ -8,6 +8,7 @@ import std.conv;
 import core.exception;
 import core.stdc.stdlib;
 import std.file;
+import std.algorithm;
 
 /*
 * Created by Mitchell Nuckols on 7/26/16
@@ -22,9 +23,15 @@ wchar[][] program;
 int x, y, dir, velX = 1, velY = 0; // 0: right (default) 1: down/right 2: down 3: down/left 4: left 5: up/left 6: up 7: up/right
 double[] stack;
 
-void createMatrix(File file) {
+void createMatrix(File file, int startLine) {
+    int currentLine = 0;
+
     while(!file.eof()) {
-        program ~= toUTF16(chomp(file.readln())).dup;
+        auto line = file.readln();
+        if(line.startsWith("#") || line.startsWith("\n")) continue; // Comments are ignored
+        if(currentLine < startLine && startLine != -1) continue; // Allows the specification of what line to start running the program
+
+        program ~= toUTF16(chomp(line)).dup;
     }
 
     int longest;
@@ -105,7 +112,7 @@ void callInstruction(wchar instruction) {
         printStack();
         break;
     case 'る':
-        printStackAsASCII();
+        printStackAsChars();
         break;
     case 'あ':
         add();
@@ -148,6 +155,15 @@ void callInstruction(wchar instruction) {
         break;
     case 'ん':
         readLine();
+        break;
+    case 'り':
+        reverse(stack);
+        break;
+    case 'そ':
+        sort(stack);
+        break;
+    case 'き':
+        emptyS();
         break;
     default: break;
     }
@@ -228,10 +244,10 @@ void setDirection(wchar direction) {
 }
 
 void pushStringLiteral() {
-    if(program[y + velY][x + velX] == '「') {
+    if(program[y + velY][x + velX] == '「' || program[y + velY][x + velX] == '」') {
         x += velX + velX;
         y += velY + velY;
-        while(program[y][x] != '」') {
+        while(program[y][x] != '」' && program[y][x] != '「') {
             // write(cast(wchar) program[y][x]);
             push(to!double(program[y][x]));
             x += velX;
@@ -242,18 +258,34 @@ void pushStringLiteral() {
 }
 
 void pushNumLiteral() {
-    if(program[y + velY][x + velX] == '「') {
+    if(program[y + velY][x + velX] == '「' || program[y + velY][x + velX] == '」') {
         wstring numLiteral = "";
+        double[] nums;
+        bool mul;
 
         x += velX + velX;
         y += velY + velY;
-        while(program[y][x] != '」') {
-            numLiteral ~= program[y][x];
+        while(program[y][x] != '」' && program[y][x] != '「') {
+            if(program[y][x] == '、') {
+                nums ~= to!double(numLiteral);
+                numLiteral = "";
+                mul = true;
+            }else {
+                numLiteral ~= program[y][x];
+            }
             x += velX;
             y += velY;
         }
 
-        push(to!double(numLiteral));
+        nums ~= to!double(numLiteral);
+
+        if(mul) {
+            foreach(num; nums) {
+                push(num);
+            }
+        }else {
+            push(to!double(numLiteral));
+        }
     }
 }
 
@@ -261,7 +293,7 @@ void printStack() {
     writeln(stack);
 }
 
-void printStackAsASCII() {
+void printStackAsChars() {
     foreach(value; stack) {
         //if(value > 255) continue;
         write(cast(wchar) value);
@@ -370,17 +402,54 @@ void evalConditional() {
 
         wstring[] condition = conditional.split('；');
 
-        switch(condition[0].dup[0]) { // TODO: Add some conditions for conditionals
-        default:
-            auto check = pop();
-            push(check);
-            // writeln(check);
-            if(check == to!double(condition[0])) {
+        auto check = pop();
+        push(check);
+
+        // writeln(condition);
+
+        final switch(condition[0].dup[0]) { // TODO: Add some conditions for conditionals
+        case 'わ':
+            if(check == to!double(condition[1])) {
                 // writeln(true);
-                setDirection(condition[1].dup[0]);
+                setDirection(condition[2].dup[0]);
             }else {
                 // writeln(false);
+                setDirection(condition[3].dup[0]);
+            }
+            break;
+        case 'が':
+            if(check < to!double(condition[1])) {
                 setDirection(condition[2].dup[0]);
+            }else {
+                setDirection(condition[3].dup[0]);
+            }
+            break;
+        case 'か':
+            if(check > to!double(condition[1])) {
+                setDirection(condition[2].dup[0]);
+            }else {
+                setDirection(condition[3].dup[0]);
+            }
+            break;
+        case 'て':
+            if(check <= to!double(condition[1])) {
+                setDirection(condition[2].dup[0]);
+            }else {
+                setDirection(condition[3].dup[0]);
+            }
+            break;
+        case 'で':
+            if(check >= to!double(condition[1])) {
+                setDirection(condition[2].dup[0]);
+            }else {
+                setDirection(condition[3].dup[0]);
+            }
+            break;
+        case 'の':
+            if(stack.length == 0) {
+                setDirection(condition[2].dup[0]);
+            }else {
+                setDirection(condition[3].dup[0]);
             }
             break;
         }
@@ -398,6 +467,12 @@ void readLine() {
     }
 }
 
+void emptyS() {
+    while(stack.length > 0) {
+        stack.popBack();
+    }
+}
+
 void push(double value) {
     stack.assumeSafeAppend() ~= value;
 }
@@ -411,6 +486,7 @@ auto pop() {
 
 void main(string[] args){
     string fileName;
+    int startLine = -1;
 
     if(args[1] != null && args[1].endsWith(".path") && exists(args[1])) {
         fileName = args[1];
@@ -419,7 +495,7 @@ void main(string[] args){
         exit(-1);
     }
 
-    createMatrix(File(fileName, "r"));
+    createMatrix(File(fileName, "r"), startLine);
     executeProgram();
 
 }
