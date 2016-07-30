@@ -15,15 +15,21 @@ import std.algorithm;
 * Feel free to modify this as much as you want.
 *
 * TODO: Fix the range violation being caused by the dynamic array (I'll probably just turn it into a 2D list in the future)
-*
+* IDEA TIME:
+* 1. Vars are implemented literally like stacks, so, why not just have vars be mini stacks with full funcitonality
+*   Like, allow vars to be manipulated like stacks, and then push them to the actual stack with a command. Might be
+*   cool. I'll probably add that later
 *
 */
 
 wchar[][] program;
 int x, y, dir, velX = 1, velY = 0; // 0: right (default) 1: down/right 2: down 3: down/left 4: left 5: up/left 6: up 7: up/right
 double[] stack;
+double[][wstring] vars;
 
-void createMatrix(File file, int startLine) {
+void createMatrix(string fileN, int startLine) {
+    File file = File(fileN, "r");
+
     int currentLine = 0;
 
     while(!file.eof()) {
@@ -34,14 +40,16 @@ void createMatrix(File file, int startLine) {
         program ~= toUTF16(chomp(line)).dup;
     }
 
+    file.close();
+
     int longest;
     for(int y = 0; y < program.length; y++) {
         longest = (program[y].length > longest ? program[y].length : longest);
-        /*write(y, " ", program[y].length);
+        /++write(y, " ", program[y].length);
         for(int x = 0; x < program[y].length; x++) {
             write(" ", program[y][x]);
         }
-        writeln();*/
+        writeln();++/
     }
 
     int dif;
@@ -156,6 +164,9 @@ void callInstruction(wchar instruction) {
     case 'ん':
         readLine();
         break;
+    case 'ね':
+        readInt();
+        break;
     case 'り':
         reverse(stack);
         break;
@@ -164,6 +175,15 @@ void callInstruction(wchar instruction) {
         break;
     case 'き':
         emptyS();
+        break;
+    case 'ぶ':
+        defineVar();
+        break;
+    case 'ふ':
+        fetchVar();
+        break;
+    case 'ぷ':
+        printVars();
         break;
     default: break;
     }
@@ -467,9 +487,85 @@ void readLine() {
     }
 }
 
+void readInt() {
+    int input;
+
+    readf(" %s", &input);
+
+    push(to!double(input));
+}
+
 void emptyS() {
+    if(stack.length < 1) throw new StackException("Cannot preform `empty`. Stack length is less than 1");
     while(stack.length > 0) {
         stack.popBack();
+    }
+}
+
+void defineVar() {
+
+    double[] var;
+    bool declaration = false;
+    bool multNum = false;
+    wstring defineLine = "";
+
+    if(program[y + velY][x + velX] == '「' || program[y + velY][x + velX] == '」') {
+        x += velX + velX;
+        y += velY + velY;
+        while(program[y][x] != '」' && program[y][x] != '「') {
+            defineLine ~= program[y][x];
+            // writeln(program[y][x]);
+            // writeln("Line: ", defineLine);
+            if(program[y][x] == '；') declaration = true;
+            if(program[y][x] == '、' && declaration) multNum = true;
+            x += velX;
+            y += velY;
+        }
+    }
+
+    if(declaration == false) {
+        var ~= pop();
+        vars[defineLine] = var;
+    }else {
+        // writeln("Line: ", defineLine);
+        wstring[] splitDeclaration = defineLine.split('；');
+        // writeln(splitDeclaration);
+        if(multNum == false) {
+            var ~= to!double(splitDeclaration[1]);
+            vars[splitDeclaration[0]] = var;
+        }else {
+            wstring[] nums = splitDeclaration[1].split('、');
+
+            foreach(num; nums) {
+                var ~= to!double(num);
+            }
+
+            vars[splitDeclaration[0]] = var;
+        }
+    }
+}
+
+void fetchVar() {
+    wstring varName = "";
+
+    if(program[y + velY][x + velX] == '「' || program[y + velY][x + velX] == '」') {
+        x += velX + velX;
+        y += velY + velY;
+        while(program[y][x] != '」' && program[y][x] != '「') {
+            varName ~= program[y][x];
+            x += velX;
+            y += velY;
+        }
+    }
+
+    foreach(var; vars[varName]) {
+        push(var);
+    }
+}
+
+void printVars() {
+    foreach(key, value; vars) {
+        writeln(key, ": ", value);
     }
 }
 
@@ -484,6 +580,34 @@ auto pop() {
     return popped;
 }
 
+/*auto getAt(int x, int y) {
+    int currLine = 0;
+    int currColumn = 0;
+
+    foreach(line; program) {
+        foreach(column; line) {
+            if(currLine == y && currColumn == x) return column;
+            currColumn++;
+        }
+        currLine++;
+    }
+
+    return null;
+}
+
+// Yay for workarounds
+
+auto getRow(int y) {
+    int currLine = 0;
+
+    foreach(line; program) {
+        if(currLine == y) return line;
+        currLine++;
+    }
+
+    return null;
+}*/
+
 void main(string[] args){
     string fileName;
     int startLine = -1;
@@ -495,7 +619,7 @@ void main(string[] args){
         exit(-1);
     }
 
-    createMatrix(File(fileName, "r"), startLine);
+    createMatrix(fileName, startLine);
     executeProgram();
 
 }
